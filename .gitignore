@@ -209,3 +209,6 @@ Result*
 
 WasmCompile.sh
 .zed
+
+.zig-cache/
+zig-out/
