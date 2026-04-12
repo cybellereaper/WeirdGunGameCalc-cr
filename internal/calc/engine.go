@@ -1,6 +1,7 @@
 package calc
 
 import (
+	"container/heap"
 	"math"
 	"runtime"
 	"sort"
@@ -23,6 +24,12 @@ type filteredParts struct {
 
 func NewEngine(data model.Dataset) *Engine { return &Engine{data: data} }
 
+func (e *Engine) EstimateSearchSpace(opt Options) uint64 {
+	cores := uint64(len(e.filterCores(opt)))
+	parts := e.prefilterParts(opt)
+	return cores * uint64(len(parts.magazines)) * uint64(len(parts.barrels)) * uint64(len(parts.stocks)) * uint64(len(parts.grips))
+}
+
 func (e *Engine) Calculate(opt Options) []model.Gun {
 	workerCount := max(1, runtime.NumCPU())
 	cores := e.filterCores(opt)
@@ -39,11 +46,11 @@ func (e *Engine) Calculate(opt Options) []model.Gun {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			local := make([]model.Gun, 0, opt.TopN)
+			collector := newTopCollector(opt.TopN, opt.SortBy, resolveDescending(opt))
 			for core := range jobs {
-				local = append(local, e.calculateForCore(core, parts, opt)...)
+				e.calculateForCore(core, parts, opt, collector)
 			}
-			results <- topN(local, opt.TopN, opt.SortBy, resolveDescending(opt))
+			results <- collector.Results()
 		}()
 	}
 
@@ -63,21 +70,91 @@ func (e *Engine) Calculate(opt Options) []model.Gun {
 	return topN(merged, opt.TopN, opt.SortBy, resolveDescending(opt))
 }
 
-func (e *Engine) calculateForCore(core model.Core, parts filteredParts, opt Options) []model.Gun {
-	result := make([]model.Gun, 0, opt.TopN)
+func (e *Engine) calculateForCore(core model.Core, parts filteredParts, opt Options, collector *topCollector) {
 	for _, mag := range parts.magazines {
 		for _, barrel := range parts.barrels {
 			for _, stock := range parts.stocks {
 				for _, grip := range parts.grips {
 					gun := buildGun(core, mag, barrel, stock, grip, e.data.Penalties, opt.PlayerMaxHealth)
 					if passesFilters(gun, opt.Filters) {
-						result = append(result, gun)
+						collector.Push(gun)
 					}
 				}
 			}
 		}
 	}
-	return result
+}
+
+type topCollector struct {
+	limit int
+	h     *gunHeap
+}
+
+func newTopCollector(limit int, sortBy SortBy, desc bool) *topCollector {
+	h := &gunHeap{sortBy: sortBy, desc: desc}
+	heap.Init(h)
+	return &topCollector{limit: limit, h: h}
+}
+
+func (c *topCollector) Push(g model.Gun) {
+	if c.limit <= 0 {
+		return
+	}
+	if c.h.Len() < c.limit {
+		heap.Push(c.h, g)
+		return
+	}
+	if better(g, c.h.items[0], c.h.sortBy, c.h.desc) {
+		heap.Pop(c.h)
+		heap.Push(c.h, g)
+	}
+}
+
+func (c *topCollector) Results() []model.Gun {
+	if c.h.Len() == 0 {
+		return nil
+	}
+	result := make([]model.Gun, c.h.Len())
+	copy(result, c.h.items)
+	return topN(result, c.limit, c.h.sortBy, c.h.desc)
+}
+
+type gunHeap struct {
+	items  []model.Gun
+	sortBy SortBy
+	desc   bool
+}
+
+func (h gunHeap) Len() int { return len(h.items) }
+
+// Less keeps the "worst" candidate at heap root so we can evict it quickly.
+func (h gunHeap) Less(i, j int) bool {
+	a := metric(h.items[i], h.sortBy)
+	b := metric(h.items[j], h.sortBy)
+	if h.desc {
+		return a < b
+	}
+	return a > b
+}
+
+func (h gunHeap) Swap(i, j int) { h.items[i], h.items[j] = h.items[j], h.items[i] }
+
+func (h *gunHeap) Push(x any) { h.items = append(h.items, x.(model.Gun)) }
+
+func (h *gunHeap) Pop() any {
+	n := len(h.items)
+	item := h.items[n-1]
+	h.items = h.items[:n-1]
+	return item
+}
+
+func better(a, b model.Gun, by SortBy, desc bool) bool {
+	ma := metric(a, by)
+	mb := metric(b, by)
+	if desc {
+		return ma > mb
+	}
+	return ma < mb
 }
 
 func (e *Engine) prefilterParts(opt Options) filteredParts {

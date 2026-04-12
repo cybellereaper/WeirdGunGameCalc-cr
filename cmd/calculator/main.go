@@ -25,6 +25,7 @@ func main() {
 	categories := flag.String("include", "", "Comma-separated categories")
 	banPrice := flag.String("banPriceType", "", "Comma-separated price types")
 	playerHealth := flag.Float64("defaultMaxHealth", 100, "Player max health used in TTK")
+	maxCombinations := flag.Uint64("maxCombinations", 50_000_000, "Hard cap for evaluated combinations to prevent runaway runtime/memory")
 	versionFlag := flag.Bool("version", false, "Print version")
 
 	flag.Parse()
@@ -60,6 +61,11 @@ func main() {
 	}
 
 	engine := calc.NewEngine(dataset)
+	estimated := engine.EstimateSearchSpace(opt)
+	if estimated > *maxCombinations {
+		fatal(fmt.Errorf("estimated search space %d exceeds cap %d; apply stricter filters/categories or raise -maxCombinations", estimated, *maxCombinations))
+	}
+
 	start := time.Now()
 	guns := engine.Calculate(opt)
 	duration := time.Since(start)

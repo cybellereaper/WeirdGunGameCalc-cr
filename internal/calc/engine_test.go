@@ -79,3 +79,52 @@ func TestBannedPriceFreeAsCoin(t *testing.T) {
 		t.Fatal("expected Free to map to COIN and be banned")
 	}
 }
+
+func TestTopCollectorKeepsBoundedResultsDescending(t *testing.T) {
+	collector := newTopCollector(2, SortDamage, true)
+	collector.Push(model.Gun{Core: "A", Damage: 10})
+	collector.Push(model.Gun{Core: "B", Damage: 20})
+	collector.Push(model.Gun{Core: "C", Damage: 15})
+
+	got := collector.Results()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(got))
+	}
+	if got[0].Core != "B" || got[1].Core != "C" {
+		t.Fatalf("unexpected top order: %+v", got)
+	}
+}
+
+func TestTopCollectorKeepsBoundedResultsAscending(t *testing.T) {
+	collector := newTopCollector(2, SortTTK, false)
+	collector.Push(model.Gun{Core: "A", TTKMinutes: 0.4})
+	collector.Push(model.Gun{Core: "B", TTKMinutes: 0.2})
+	collector.Push(model.Gun{Core: "C", TTKMinutes: 0.3})
+
+	got := collector.Results()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(got))
+	}
+	if got[0].Core != "B" || got[1].Core != "C" {
+		t.Fatalf("unexpected top order: %+v", got)
+	}
+}
+
+func TestEstimateSearchSpaceRespectsFiltering(t *testing.T) {
+	engine := NewEngine(model.Dataset{
+		Cores:     []model.Core{{Name: "CoreA", Category: "AR"}, {Name: "CoreB", Category: "SMG"}},
+		Magazines: []model.Part{{Name: "M1"}, {Name: "M2"}},
+		Barrels:   []model.Part{{Name: "B1"}},
+		Stocks:    []model.Part{{Name: "S1"}},
+		Grips:     []model.Part{{Name: "G1"}},
+	})
+
+	opt := DefaultOptions()
+	opt.Categories = map[string]bool{"AR": true}
+	opt.ForceMagazine = map[string]bool{"M1": true}
+
+	estimated := engine.EstimateSearchSpace(opt)
+	if estimated != 1 {
+		t.Fatalf("expected 1 estimated combination, got %d", estimated)
+	}
+}

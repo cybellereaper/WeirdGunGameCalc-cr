@@ -20,6 +20,8 @@ go build -o wggcalc ./cmd/calculator
 ./calculator -data Data/FullData.json -number 10 -sort TTK -priority AUTO -output Results.json
 ```
 
+If your query is too broad, the CLI now fails fast with a search-space estimate. You can reduce combinations with `-include`, stronger filters, or increase the cap with `-maxCombinations`.
+
 ## Important notes
 
 - The Go rewrite preserves core stat-composition behavior and filtering/sorting shape.
