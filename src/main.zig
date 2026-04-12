@@ -18,6 +18,7 @@ fn printHelp() void {
         \\  --damage-end-min/--damage-end-max <v>
         \\  --ttk-min/--ttk-max <v>  Seconds
         \\  --dps-min/--dps-max <v>
+        \\  --metrics                Print runtime and calculation performance metrics
         \\  --help
         \\
     , .{});
@@ -40,6 +41,15 @@ fn parsePriority(value: []const u8) !calc.SortPriority {
     return error.InvalidPriority;
 }
 
+fn requireNextArg(args: []const []const u8, i: *usize, option_name: []const u8) ![]const u8 {
+    i.* += 1;
+    if (i.* >= args.len) {
+        std.debug.print("Missing value for option: {s}\n", .{option_name});
+        return error.InvalidArgs;
+    }
+    return args[i.*];
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -48,6 +58,7 @@ pub fn main() !void {
     var config: calc.Config = .{};
     var include_list = std.array_list.Managed([]const u8).init(allocator);
     defer include_list.deinit();
+    var show_performance_metrics = false;
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
@@ -59,54 +70,41 @@ pub fn main() !void {
             printHelp();
             return;
         } else if (std.mem.eql(u8, arg, "--data")) {
-            i += 1;
-            config.data_path = args[i];
+            config.data_path = try requireNextArg(args, &i, "--data");
         } else if (std.mem.eql(u8, arg, "--top")) {
-            i += 1;
-            config.top_n = try std.fmt.parseInt(usize, args[i], 10);
+            config.top_n = try std.fmt.parseInt(usize, try requireNextArg(args, &i, "--top"), 10);
         } else if (std.mem.eql(u8, arg, "--mh")) {
-            i += 1;
-            config.player_max_health = try std.fmt.parseFloat(f64, args[i]);
+            config.player_max_health = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--mh"));
         } else if (std.mem.eql(u8, arg, "--sort")) {
-            i += 1;
-            config.sort_key = try parseSort(args[i]);
+            config.sort_key = try parseSort(try requireNextArg(args, &i, "--sort"));
         } else if (std.mem.eql(u8, arg, "--priority")) {
-            i += 1;
-            config.priority = try parsePriority(args[i]);
+            config.priority = try parsePriority(try requireNextArg(args, &i, "--priority"));
         } else if (std.mem.eql(u8, arg, "--include")) {
-            i += 1;
-            var split = std.mem.splitScalar(u8, args[i], ',');
+            var split = std.mem.splitScalar(u8, try requireNextArg(args, &i, "--include"), ',');
             while (split.next()) |part| {
                 if (part.len == 0) continue;
                 try include_list.append(part);
             }
         } else if (std.mem.eql(u8, arg, "--part-pool")) {
-            i += 1;
-            config.part_pool_per_type = try std.fmt.parseInt(usize, args[i], 10);
+            config.part_pool_per_type = try std.fmt.parseInt(usize, try requireNextArg(args, &i, "--part-pool"), 10);
         } else if (std.mem.eql(u8, arg, "--damage-min")) {
-            i += 1;
-            config.damage_range.min = try std.fmt.parseFloat(f64, args[i]);
+            config.damage_range.min = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--damage-min"));
         } else if (std.mem.eql(u8, arg, "--damage-max")) {
-            i += 1;
-            config.damage_range.max = try std.fmt.parseFloat(f64, args[i]);
+            config.damage_range.max = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--damage-max"));
         } else if (std.mem.eql(u8, arg, "--damage-end-min")) {
-            i += 1;
-            config.damage_end_range.min = try std.fmt.parseFloat(f64, args[i]);
+            config.damage_end_range.min = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--damage-end-min"));
         } else if (std.mem.eql(u8, arg, "--damage-end-max")) {
-            i += 1;
-            config.damage_end_range.max = try std.fmt.parseFloat(f64, args[i]);
+            config.damage_end_range.max = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--damage-end-max"));
         } else if (std.mem.eql(u8, arg, "--ttk-min")) {
-            i += 1;
-            config.ttk_seconds_range.min = try std.fmt.parseFloat(f64, args[i]);
+            config.ttk_seconds_range.min = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--ttk-min"));
         } else if (std.mem.eql(u8, arg, "--ttk-max")) {
-            i += 1;
-            config.ttk_seconds_range.max = try std.fmt.parseFloat(f64, args[i]);
+            config.ttk_seconds_range.max = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--ttk-max"));
         } else if (std.mem.eql(u8, arg, "--dps-min")) {
-            i += 1;
-            config.dps_range.min = try std.fmt.parseFloat(f64, args[i]);
+            config.dps_range.min = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--dps-min"));
         } else if (std.mem.eql(u8, arg, "--dps-max")) {
-            i += 1;
-            config.dps_range.max = try std.fmt.parseFloat(f64, args[i]);
+            config.dps_range.max = try std.fmt.parseFloat(f64, try requireNextArg(args, &i, "--dps-max"));
+        } else if (std.mem.eql(u8, arg, "--metrics")) {
+            show_performance_metrics = true;
         } else {
             std.debug.print("Unknown option: {s}\n", .{arg});
             printHelp();
@@ -117,11 +115,18 @@ pub fn main() !void {
     config.include_categories = try include_list.toOwnedSlice();
     defer allocator.free(config.include_categories);
 
+    var total_timer = try std.time.Timer.start();
+    var load_timer = try std.time.Timer.start();
     var data = try calc.loadData(allocator, config.data_path);
     defer data.deinit(allocator);
+    const load_time_ns = load_timer.read();
 
-    var results = try calc.calculateTop(allocator, config, &data);
+    var calc_timer = try std.time.Timer.start();
+    var stats: calc.CalculationStats = .{};
+    var results = try calc.calculateTopWithStats(allocator, config, &data, &stats);
     defer results.deinit();
+    const calc_time_ns = calc_timer.read();
+    const total_time_ns = total_timer.read();
 
     const out = std.fs.File.stdout().deprecatedWriter();
     try out.print("Loaded {d} cores, {d} magazines, {d} barrels, {d} stocks, {d} grips\n\n", .{
@@ -132,4 +137,20 @@ pub fn main() !void {
         data.grips.items.len,
     });
     try calc.writeResults(out, results.items);
+
+    if (show_performance_metrics) {
+        try out.print(
+            "Performance metrics:\n  Data load: {d:.3} ms\n  Calculation: {d:.3} ms\n  Total runtime: {d:.3} ms\n  Cores considered: {d}\n  Cores skipped by category: {d}\n  Combinations evaluated: {d}\n  Combinations filtered: {d}\n  Results kept: {d}\n",
+            .{
+                @as(f64, @floatFromInt(load_time_ns)) / @as(f64, std.time.ns_per_ms),
+                @as(f64, @floatFromInt(calc_time_ns)) / @as(f64, std.time.ns_per_ms),
+                @as(f64, @floatFromInt(total_time_ns)) / @as(f64, std.time.ns_per_ms),
+                stats.cores_considered,
+                stats.cores_skipped_by_category,
+                stats.combinations_evaluated,
+                stats.combinations_filtered,
+                stats.results_kept,
+            },
+        );
+    }
 }

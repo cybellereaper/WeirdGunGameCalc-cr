@@ -25,6 +25,14 @@ pub const Config = struct {
     part_pool_per_type: usize = 20,
 };
 
+pub const CalculationStats = struct {
+    cores_considered: usize = 0,
+    cores_skipped_by_category: usize = 0,
+    combinations_evaluated: usize = 0,
+    combinations_filtered: usize = 0,
+    results_kept: usize = 0,
+};
+
 pub const SortKey = enum {
     ttk,
     dps,
@@ -401,6 +409,17 @@ fn passesFilters(config: Config, result: Result) bool {
 }
 
 pub fn calculateTop(allocator: std.mem.Allocator, config: Config, data: *const DataSet) !std.array_list.Managed(Result) {
+    var ignored_stats: CalculationStats = .{};
+    return calculateTopWithStats(allocator, config, data, &ignored_stats);
+}
+
+pub fn calculateTopWithStats(
+    allocator: std.mem.Allocator,
+    config: Config,
+    data: *const DataSet,
+    stats: *CalculationStats,
+) !std.array_list.Managed(Result) {
+    stats.* = .{};
     var results = std.array_list.Managed(Result).init(allocator);
     errdefer results.deinit();
 
@@ -423,7 +442,11 @@ pub fn calculateTop(allocator: std.mem.Allocator, config: Config, data: *const D
     };
 
     for (data.cores.items) |core| {
-        if (!includeCategory(config, core.category)) continue;
+        stats.cores_considered += 1;
+        if (!includeCategory(config, core.category)) {
+            stats.cores_skipped_by_category += 1;
+            continue;
+        }
 
         const core_idx = data.categories.get(core.category) orelse continue;
 
@@ -449,6 +472,7 @@ pub fn calculateTop(allocator: std.mem.Allocator, config: Config, data: *const D
                     const stock_pen = data.penalties[core_idx][stock_idx];
 
                     for (grip_candidates.view) |grip| {
+                        stats.combinations_evaluated += 1;
                         const grip_idx = data.categories.get(grip.category) orelse continue;
                         const grip_pen = data.penalties[core_idx][grip_idx];
 
@@ -488,7 +512,10 @@ pub fn calculateTop(allocator: std.mem.Allocator, config: Config, data: *const D
                             .dps = (damage * fire_rate) / 60.0,
                         };
 
-                        if (!passesFilters(config, res)) continue;
+                        if (!passesFilters(config, res)) {
+                            stats.combinations_filtered += 1;
+                            continue;
+                        }
                         try PushTop.run(&results, config, res);
                     }
                 }
@@ -496,6 +523,7 @@ pub fn calculateTop(allocator: std.mem.Allocator, config: Config, data: *const D
         }
     }
 
+    stats.results_kept = results.items.len;
     return results;
 }
 
@@ -525,4 +553,111 @@ test "sort comparison honors priority" {
     const b = Result{ .core = "b", .magazine = "", .barrel = "", .stock = "", .grip = "", .damage = 10, .damage_end = 10, .fire_rate = 10, .magazine_size = 1, .ttk_seconds = 3, .dps = 8 };
     try std.testing.expect(cmp(.{ .sort_key = .ttk, .priority = .auto }, a, b));
     try std.testing.expect(cmp(.{ .sort_key = .dps, .priority = .highest }, b, a));
+}
+
+fn appendOwnedPart(list: *std.array_list.Managed(Part), allocator: std.mem.Allocator, name: []const u8, category: []const u8, damage_mod: f64, fire_rate_mod: f64) !void {
+    try list.append(.{
+        .name = try allocator.dupe(u8, name),
+        .category = try allocator.dupe(u8, category),
+        .damage_mod = damage_mod,
+        .fire_rate_mod = fire_rate_mod,
+    });
+}
+
+test "calculateTopWithStats tracks evaluated combinations" {
+    const allocator = std.testing.allocator;
+
+    var data: DataSet = .{
+        .cores = std.array_list.Managed(Core).init(allocator),
+        .magazines = std.array_list.Managed(Magazine).init(allocator),
+        .barrels = std.array_list.Managed(Part).init(allocator),
+        .grips = std.array_list.Managed(Part).init(allocator),
+        .stocks = std.array_list.Managed(Part).init(allocator),
+        .penalties = try allocator.alloc([]f64, 1),
+        .categories = std.StringHashMap(usize).init(allocator),
+    };
+    defer data.deinit(allocator);
+
+    data.penalties[0] = try allocator.alloc(f64, 1);
+    data.penalties[0][0] = 1.0;
+    try data.categories.put(try allocator.dupe(u8, "AR"), 0);
+
+    try data.cores.append(.{
+        .name = try allocator.dupe(u8, "Core-1"),
+        .category = try allocator.dupe(u8, "AR"),
+        .damage = 50,
+        .damage_end = 40,
+        .fire_rate = 120,
+    });
+    try data.magazines.append(.{
+        .name = try allocator.dupe(u8, "Mag-1"),
+        .category = try allocator.dupe(u8, "AR"),
+        .magazine_size = 20,
+        .reload_time = 1.0,
+        .damage_mod = 0,
+        .fire_rate_mod = 0,
+    });
+    try appendOwnedPart(&data.barrels, allocator, "Barrel-1", "AR", 0, 0);
+    try appendOwnedPart(&data.stocks, allocator, "Stock-1", "AR", 0, 0);
+    try appendOwnedPart(&data.grips, allocator, "Grip-1", "AR", 0, 0);
+
+    var stats: CalculationStats = undefined;
+    var results = try calculateTopWithStats(allocator, .{ .top_n = 5 }, &data, &stats);
+    defer results.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), stats.cores_considered);
+    try std.testing.expectEqual(@as(usize, 1), stats.combinations_evaluated);
+    try std.testing.expectEqual(@as(usize, 0), stats.combinations_filtered);
+    try std.testing.expectEqual(@as(usize, 1), stats.results_kept);
+    try std.testing.expectEqual(@as(usize, 1), results.items.len);
+}
+
+test "calculateTopWithStats tracks filtered combinations" {
+    const allocator = std.testing.allocator;
+
+    var data: DataSet = .{
+        .cores = std.array_list.Managed(Core).init(allocator),
+        .magazines = std.array_list.Managed(Magazine).init(allocator),
+        .barrels = std.array_list.Managed(Part).init(allocator),
+        .grips = std.array_list.Managed(Part).init(allocator),
+        .stocks = std.array_list.Managed(Part).init(allocator),
+        .penalties = try allocator.alloc([]f64, 1),
+        .categories = std.StringHashMap(usize).init(allocator),
+    };
+    defer data.deinit(allocator);
+
+    data.penalties[0] = try allocator.alloc(f64, 1);
+    data.penalties[0][0] = 1.0;
+    try data.categories.put(try allocator.dupe(u8, "AR"), 0);
+
+    try data.cores.append(.{
+        .name = try allocator.dupe(u8, "Core-1"),
+        .category = try allocator.dupe(u8, "AR"),
+        .damage = 50,
+        .damage_end = 40,
+        .fire_rate = 120,
+    });
+    try data.magazines.append(.{
+        .name = try allocator.dupe(u8, "Mag-1"),
+        .category = try allocator.dupe(u8, "AR"),
+        .magazine_size = 20,
+        .reload_time = 1.0,
+        .damage_mod = 0,
+        .fire_rate_mod = 0,
+    });
+    try appendOwnedPart(&data.barrels, allocator, "Barrel-1", "AR", 0, 0);
+    try appendOwnedPart(&data.stocks, allocator, "Stock-1", "AR", 0, 0);
+    try appendOwnedPart(&data.grips, allocator, "Grip-1", "AR", 0, 0);
+
+    var stats: CalculationStats = undefined;
+    var results = try calculateTopWithStats(allocator, .{
+        .top_n = 5,
+        .damage_range = .{ .min = 9999 },
+    }, &data, &stats);
+    defer results.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), stats.combinations_evaluated);
+    try std.testing.expectEqual(@as(usize, 1), stats.combinations_filtered);
+    try std.testing.expectEqual(@as(usize, 0), stats.results_kept);
+    try std.testing.expectEqual(@as(usize, 0), results.items.len);
 }
