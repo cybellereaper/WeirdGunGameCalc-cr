@@ -42,3 +42,10 @@ Executable output:
 ```bash
 crystal spec
 ```
+
+
+## Regenerating sheet data
+
+```bash
+crystal run ParseSheet.cr
+```

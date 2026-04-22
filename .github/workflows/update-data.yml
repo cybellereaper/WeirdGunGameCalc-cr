@@ -16,13 +16,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Set up Crystal
+        uses: crystal-lang/install-crystal@v1
 
       - name: Refresh FullData.json from sheet
-        run: python ParseSheet.py
+        run: crystal run ParseSheet.cr
 
       - name: Commit and push updates
         run: |
