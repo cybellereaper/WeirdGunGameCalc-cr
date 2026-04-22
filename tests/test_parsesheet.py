@@ -1,5 +1,6 @@
 from pathlib import Path
 import importlib.util
+import csv
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "ParseSheet.py"
 spec = importlib.util.spec_from_file_location("ParseSheet", MODULE_PATH)
@@ -75,21 +76,46 @@ def test_parse_cores_parses_category_pellets_and_ranges(tmp_path: Path, monkeypa
     assert core["Recoil_Aim_Vertical"] == [21, 22]
 
 
-def test_parse_partsv2_allows_duplicate_names(tmp_path: Path, monkeypatch):
+def test_parse_partsv2_skips_identical_duplicate_names(tmp_path: Path, monkeypatch):
     parts_csv = tmp_path / "parts2.csv"
-    parts_csv.write_text(
-        "h1,h2\n"
-        "h3,h4\n"
-        ",,AR Barrels,,,,,,,,,,,,,,\n"
-        ",100,AKM,1 Magazine_Size,,,,,,,,,,,,,\n"
-        ",200,AKM,2 Magazine_Size,,,,,,,,,,,,,\n"
-    )
+    rows = [
+        ["h1", "h2"],
+        ["h3", "h4"],
+        ["", "", "AR Barrels", *[""] * 14],
+        ["", "100", "AKM", *([""] * 11), "+16% Recoil", "", ""],
+        ["", "100", "AKM", *([""] * 11), "+16% Recoil", "", ""],
+    ]
+    with open(parts_csv, "w", newline="") as file:
+        csv.writer(file).writerows(rows)
 
     monkeypatch.setattr(ParseSheet, "PARTSHEET2", parts_csv)
 
     output = {"Barrels": [], "Magazines": [], "Grips": [], "Stocks": [], "Cores": []}
     ParseSheet.ParsePartsv2(output)
 
-    assert len(output["Barrels"]) == 2
+    assert len(output["Barrels"]) == 1
     assert output["Barrels"][0]["Name"] == "AKM"
-    assert output["Barrels"][1]["Name"] == "AKM"
+    assert output["Barrels"][0]["Recoil"] == 16
+
+
+def test_parse_partsv2_rejects_conflicting_duplicate_names(tmp_path: Path, monkeypatch):
+    parts_csv = tmp_path / "parts2.csv"
+    rows = [
+        ["h1", "h2"],
+        ["h3", "h4"],
+        ["", "", "AR Barrels", *[""] * 14],
+        ["", "100", "AKM", *([""] * 11), "+16% Recoil", "", ""],
+        ["", "100", "AKM", *([""] * 11), "+12% Recoil", "", ""],
+    ]
+    with open(parts_csv, "w", newline="") as file:
+        csv.writer(file).writerows(rows)
+
+    monkeypatch.setattr(ParseSheet, "PARTSHEET2", parts_csv)
+
+    output = {"Barrels": [], "Magazines": [], "Grips": [], "Stocks": [], "Cores": []}
+
+    try:
+        ParseSheet.ParsePartsv2(output)
+        assert False, "Expected ValueError for conflicting duplicate names"
+    except ValueError as exc:
+        assert "Duplicate part name 'AKM' in category 'AR'" in str(exc)
