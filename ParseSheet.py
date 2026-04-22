@@ -99,7 +99,7 @@ def DetectPriceType(price, row) -> str:
         return price
 
 def DownloadSheet():
-
+    SHEETFOLDER.mkdir(parents=True, exist_ok=True)
     os.system(f'rm -f {SHEETFOLDER}/*')
     # os.system(f'wget -O {PARTSHEET} "https://docs.google.com/spreadsheets/d/{SHEETID}/export?format=csv&id={SHEETID}&gid={PARTSHEETGID}"')
     os.system(f'wget -O {CORESHEET} "https://docs.google.com/spreadsheets/d/{SHEETID}/export?format=csv&id={SHEETID}&gid={CORESHEETGID}"')
