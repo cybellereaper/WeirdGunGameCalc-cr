@@ -265,7 +265,11 @@ def deep_compare(expected: dict[str, list[dict[str, Any]]], actual: dict[str, li
 
 class PartsParser:
     def __init__(self) -> None:
-        self._seen_parts: dict[str, set[str]] = {category: set() for category in VALID_PART_CATEGORIES}
+        self._seen_parts: dict[tuple[str, str], set[str]] = {
+            (category, part_type): set()
+            for category in VALID_PART_CATEGORIES
+            for part_type in VALID_PART_TYPES
+        }
 
     def parse_rows(self, rows: Sequence[Sequence[str]]) -> dict[str, list[dict[str, Any]]]:
         output: dict[str, list[dict[str, Any]]] = {
@@ -293,9 +297,12 @@ class PartsParser:
             if current_type == "":
                 raise ParseError(f"Encountered part before any part type header. row={row}")
 
-            if name in self._seen_parts[current_category]:
-                raise ParseError(f"Duplicate part name {name!r} in category {current_category!r}")
-            self._seen_parts[current_category].add(name)
+            seen_key = (current_category, current_type)
+            if name in self._seen_parts[seen_key]:
+                raise ParseError(
+                    f"Duplicate part name {name!r} in category {current_category!r} and part type {current_type!r}"
+                )
+            self._seen_parts[seen_key].add(name)
 
             part: dict[str, Any] = {
                 "Price_Type": detect_price_type(row[0], row),
