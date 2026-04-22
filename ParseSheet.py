@@ -214,8 +214,9 @@ def ParsePartsv2(outputData):
                     continue
 
             if name in seenParts[currentCategory]:
-                raise ValueError(f"Duplicate part name '{name}' in category '{currentCategory}'")
-            seenParts[currentCategory].add(name)
+                print(f"WARNING: Duplicate part name '{name}' in category '{currentCategory}'")
+            else:
+                seenParts[currentCategory].add(name)
 
             part = _build_base_item(row, name, currentCategory)
             part.update(_parse_part_properties(row))
