@@ -1,13 +1,13 @@
 .PHONY: build run test clean
 
 build:
-	zig build -Doptimize=ReleaseFast
+	shards build --release
 
 run:
-	zig build run --
+	crystal run src/main.cr --
 
 test:
-	zig build test
+	crystal spec
 
 clean:
-	rm -rf .zig-cache zig-out
+	rm -rf .shards shard.lock bin .crystal
