@@ -1,6 +1,4 @@
-# WeirdGunGameCalc (Crystal)
-
-A Crystal rewrite of the Weird Gun Game calculator.
+# WeirdGunGameCalc
 
 ## Build
 
@@ -42,7 +40,6 @@ Executable output:
 ```bash
 crystal spec
 ```
-
 
 ## Regenerating sheet data
 
