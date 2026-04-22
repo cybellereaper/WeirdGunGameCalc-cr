@@ -1191,14 +1191,14 @@
         "Recoil": 45
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Bottle",
         "Category": "Weird",
         "Detection_Radius": -50,
         "Fire_Rate": 3
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Super Honk",
         "Category": "Weird",
         "Damage": 9999,
@@ -1208,7 +1208,7 @@
         "Spread": 9999
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Block Cannon",
         "Category": "Weird",
         "Damage": 60,
@@ -1219,7 +1219,7 @@
         "Recoil": 500
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Spear",
         "Category": "Weird",
         "Damage": 70,
@@ -1227,7 +1227,7 @@
         "Range": -99.9
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Volley",
         "Category": "Weird",
         "Damage": 20,
@@ -1236,7 +1236,7 @@
         "Recoil": 85
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "2+2=4",
         "Category": "Weird",
         "Damage": 2,
@@ -1244,7 +1244,7 @@
         "Reload_Speed": 4
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Drill",
         "Category": "Weird",
         "Damage": -15,
@@ -1253,7 +1253,7 @@
         "Spread": 85
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Fat Cat",
         "Category": "Weird",
         "Damage": 35,
@@ -1262,7 +1262,7 @@
         "Range": 10
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "Hotdog",
         "Category": "Weird",
         "Damage": 2,
@@ -1271,7 +1271,7 @@
         "Movement_Speed": -4
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "AirStrike",
         "Category": "Weird",
         "Damage": 4,
@@ -2736,7 +2736,7 @@
         "Spread": 25
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Magic Mag",
         "Category": "Weird",
         "Magazine_Size": 3,
@@ -2756,7 +2756,7 @@
         "Spread": 21
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Drill",
         "Category": "Weird",
         "Magazine_Size": 108,
@@ -2768,7 +2768,7 @@
         "Spread": 87
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Fat Cat",
         "Category": "Weird",
         "Magazine_Size": 1,
@@ -2778,7 +2778,7 @@
         "Movement_Speed": -10
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "Hotdog",
         "Category": "Weird",
         "Magazine_Size": 27,
@@ -2788,7 +2788,7 @@
         "Movement_Speed": 3
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "AirStrike",
         "Category": "Weird",
         "Magazine_Size": 15,
@@ -3907,28 +3907,28 @@
         "Recoil": 35
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Drill",
         "Category": "Weird",
         "Recoil": -19,
         "Reload_Speed": 4
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Fat Cat",
         "Category": "Weird",
         "Magazine_Cap": 23,
         "Movement_Speed": 3
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "Hotdog",
         "Category": "Weird",
         "Health": 2,
         "Movement_Speed": 2
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "AirStrike",
         "Category": "Weird",
         "Recoil": -17.5,
@@ -5057,7 +5057,7 @@
         "Recoil": 43
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Fat Cat",
         "Category": "Weird",
         "Health": 5,
@@ -5065,14 +5065,14 @@
         "Spread": 43
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "Hotdog",
         "Category": "Weird",
         "Health": 6,
         "Movement_Speed": 4
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "AirStrike",
         "Category": "Weird",
         "Movement_Speed": -3,
@@ -8900,12 +8900,12 @@
         ]
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Drill",
         "Category": "Weird",
         "Damage": [
-          34,
-          20
+          20,
+          6
         ],
         "Dropoff_Studs": [
           18,
@@ -8936,7 +8936,7 @@
         ]
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Plank",
         "Category": "Weird",
         "Damage": [
@@ -8972,7 +8972,7 @@
         ]
       },
       {
-        "Price_Type": "WC",
+        "Price_Type": "Unknown",
         "Name": "Fat Cat",
         "Category": "Weird",
         "Damage": [
@@ -9010,7 +9010,7 @@
         ]
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "Hotdog",
         "Category": "Weird",
         "Damage": [
@@ -9046,7 +9046,7 @@
         ]
       },
       {
-        "Price_Type": "Robux",
+        "Price_Type": "Unknown",
         "Name": "AirStrike",
         "Category": "Weird",
         "Damage": [
