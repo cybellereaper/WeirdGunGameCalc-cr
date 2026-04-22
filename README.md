@@ -46,3 +46,15 @@ crystal spec
 ```bash
 crystal run ParseSheet.cr
 ```
+
+
+## Web app (GitHub Pages)
+
+A browser-hosted version is available under `docs/`.
+
+- Entry point: `docs/index.html`
+- Engine: `docs/src/engine.js`
+- UI: `docs/src/app.js`
+- Tests: `docs/tests/engine.test.mjs`
+
+See `docs/README.md` for GitHub Pages deployment steps.
