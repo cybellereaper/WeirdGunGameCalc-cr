@@ -26,13 +26,8 @@ jobs:
 
       - name: Commit and push updates
         run: |
-          if git diff --quiet -- Data/FullData.json; then
-            echo "No data changes to commit."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Data/FullData.json
-          git commit -m "chore: update parsed sheet data"
+          git commit -m "chore: update parsed sheet data" || echo "Nothing to commit"
           git push
