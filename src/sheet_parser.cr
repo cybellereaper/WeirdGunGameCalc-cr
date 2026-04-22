@@ -2,6 +2,7 @@ require "file_utils"
 require "csv"
 require "json"
 require "http/client"
+require "uri"
 
 module SheetParser
   SHEET_ID     = "1Kc9aME3xlUC_vV5dFRe457OchqUOrwuiX_pQykjCF68"
@@ -53,16 +54,19 @@ module SheetParser
   struct SheetExport
     getter gid : String
     getter output_path : String
+    getter url_override : String?
 
-    def initialize(@gid : String, @output_path : String)
+    def initialize(@gid : String, @output_path : String, @url_override : String? = nil)
     end
 
     def export_url(sheet_id : String)
-      "https://docs.google.com/spreadsheets/d/#{sheet_id}/export?format=csv&id=#{sheet_id}&gid=#{gid}"
+      url_override || "https://docs.google.com/spreadsheets/d/#{sheet_id}/export?format=csv&id=#{sheet_id}&gid=#{gid}"
     end
   end
 
   class SheetDownloader
+    MAX_REDIRECTS = 5
+
     def initialize(@sheet_id : String, @sheet_folder : String)
     end
 
@@ -80,11 +84,41 @@ module SheetParser
     end
 
     private def download_file(url : String, output_path : String)
-      response = HTTP::Client.get(url)
+      response = get_with_redirects(url)
       raise "Failed to download #{output_path}. status=#{response.status_code}" unless response.success?
 
       Dir.mkdir_p(File.dirname(output_path))
       File.write(output_path, response.body)
+    end
+
+    private def get_with_redirects(initial_url : String) : HTTP::Client::Response
+      url = initial_url
+      redirects = 0
+
+      loop do
+        response = HTTP::Client.get(url)
+        return response unless redirect_status?(response.status_code)
+
+        location = response.headers["Location"]?
+        raise "Redirect response missing Location header for #{url}" unless location
+
+        redirects += 1
+        raise "Too many redirects while downloading #{initial_url}" if redirects > MAX_REDIRECTS
+
+        url = resolve_redirect_url(url, location)
+      end
+    end
+
+    private def redirect_status?(status_code : Int32) : Bool
+      status_code.in?({301, 302, 303, 307, 308})
+    end
+
+    private def resolve_redirect_url(current_url : String, location : String) : String
+      return location if location.starts_with?("http://") || location.starts_with?("https://")
+
+      current_uri = URI.parse(current_url)
+      base = "#{current_uri.scheme}://#{current_uri.authority}"
+      location.starts_with?('/') ? "#{base}#{location}" : "#{base}/#{location}"
     end
   end
 

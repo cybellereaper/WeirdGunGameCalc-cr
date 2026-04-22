@@ -1,5 +1,6 @@
 require "./spec_helper"
 require "../src/sheet_parser"
+require "http/server"
 
 describe SheetParser::Normalizer do
   it "normalizes numeric and multiplier values" do
@@ -46,5 +47,40 @@ describe SheetParser::PartsParser do
     ]
 
     expect_raises(SheetParser::ParseError) { parser.parse_rows(rows) }
+  end
+end
+
+describe SheetParser::SheetDownloader do
+  it "follows HTTP redirects when downloading exports" do
+    server = HTTP::Server.new do |context|
+      case context.request.path
+      when "/redirect"
+        context.response.status_code = 307
+        context.response.headers["Location"] = "/final"
+      when "/final"
+        context.response.print("name,stat\nx,y\n")
+      else
+        context.response.status_code = 404
+      end
+    end
+
+    address = server.bind_tcp("127.0.0.1", 0)
+    port = address.port
+    spawn { server.listen }
+    sleep 20.milliseconds
+
+    tmp_dir = File.join(Dir.tempdir, "sheet_parser_spec_#{Random.rand(1_000_000)}")
+    Dir.mkdir_p(tmp_dir)
+
+    begin
+      export = SheetParser::SheetExport.new("unused", File.join(tmp_dir, "cores.csv"), "http://127.0.0.1:#{port}/redirect")
+      downloader = SheetParser::SheetDownloader.new("unused", tmp_dir)
+      downloader.download([export])
+
+      File.read(File.join(tmp_dir, "cores.csv")).should contain("name,stat")
+    ensure
+      FileUtils.rm_rf(tmp_dir)
+      server.close
+    end
   end
 end
