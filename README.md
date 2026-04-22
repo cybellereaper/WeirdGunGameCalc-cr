@@ -1,32 +1,25 @@
-# WeirdGunGameCalc (Zig)
+# WeirdGunGameCalc (Crystal)
 
-A full Zig rewrite of the Weird Gun Game calculator.
-
-## What changed
-
-- Replaced the previous C++ codebase with a Zig CLI application.
-- Kept the same data source (`Data/FullData.json`).
-- Reimplemented a production-friendly brute-force engine with filtering and sorting.
-- Added unit tests for core logic (`zig build test`).
+A Crystal rewrite of the Weird Gun Game calculator.
 
 ## Build
 
 ```bash
-zig build -Doptimize=ReleaseFast
+shards build --release
 ```
 
 Executable output:
 
 ```bash
-./zig-out/bin/wggcalc --help
+./bin/wggcalc --help
 ```
 
 ## Run examples
 
 ```bash
-./zig-out/bin/wggcalc --top 10 --sort ttk --include AR,SMG
-./zig-out/bin/wggcalc --sort dps --priority highest --dps-min 100
-./zig-out/bin/wggcalc --ttk-max 0.25 --mh 100
+./bin/wggcalc --top 10 --sort ttk --include AR,SMG
+./bin/wggcalc --sort dps --priority highest --dps-min 100
+./bin/wggcalc --ttk-max 0.25 --mh 100
 ```
 
 ## Supported flags
@@ -37,13 +30,22 @@ Executable output:
 - `--sort <ttk|dps|damage|damageend|firerate|magazine>`
 - `--priority <highest|lowest|auto>`
 - `--include <cat1,cat2,...>` include weapon categories
+- `--part-pool <n>` candidate parts per type per core
 - `--damage-min`, `--damage-max`
 - `--damage-end-min`, `--damage-end-max`
 - `--ttk-min`, `--ttk-max` (seconds)
 - `--dps-min`, `--dps-max`
+- `--metrics`
 
 ## Test
 
 ```bash
-zig build test
+crystal spec
+```
+
+
+## Regenerating sheet data
+
+```bash
+crystal run ParseSheet.cr
 ```
