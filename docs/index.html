@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WASM Calculator</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="calculator">
+      <h1>WASM Calculator</h1>
+      <p class="subtitle">Runs on GitHub Pages using Rust + WebAssembly.</p>
+
+      <label for="expression">Expression</label>
+      <input id="expression" type="text" placeholder="e.g. (2 + 3) * 4 / 2" autocomplete="off" />
+
+      <div class="actions">
+        <button id="calculate" type="button">Calculate</button>
+        <button id="clear" type="button" class="ghost">Clear</button>
+      </div>
+
+      <section class="result">
+        <h2>Result</h2>
+        <output id="result" aria-live="polite">—</output>
+      </section>
+
+      <p id="error" class="error" aria-live="polite"></p>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

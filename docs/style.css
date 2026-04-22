@@ -1,0 +1,90 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top, #1d2333, #0f1118 60%);
+  color: #edf2ff;
+}
+
+.calculator {
+  width: min(92vw, 460px);
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0.35rem 0 1rem;
+  color: #b7c4ea;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.8rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #55607a;
+  background: #0c1220;
+  color: #edf2ff;
+}
+
+.actions {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+button {
+  flex: 1;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  background: #5d73ff;
+  color: #fff;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid #7380a1;
+}
+
+.result {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+output {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.error {
+  min-height: 1.4rem;
+  margin: 0.9rem 0 0;
+  color: #ff9f9f;
+}

@@ -46,3 +46,15 @@ crystal spec
 ```bash
 crystal run ParseSheet.cr
 ```
+
+## WebAssembly calculator for GitHub Pages
+
+A standalone static calculator app is available in [`docs/`](docs/README.md).
+
+Build steps:
+
+```bash
+cd docs
+wasm-pack build --target web --out-dir pkg
+python3 -m http.server 8000
+```
