@@ -1,4 +1,4 @@
-use crate::data::{Core, DataSet, Magazine, Part};
+use crate::data::{Core, DataSet, Magazine, Part, PriceType};
 use rusqlite::Connection;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -42,6 +42,19 @@ fn load_cores_from_sqlite(conn: &Connection) -> anyhow::Result<Vec<Core>> {
             damage: row.get(2)?,
             damage_end: row.get(3)?,
             fire_rate: row.get(4)?,
+            price_type: PriceType::Unknown,
+            spread_hip: 0.0,
+            spread_aim: 0.0,
+            recoil_hip: 0.0,
+            recoil_aim: 0.0,
+            movement_speed: 0.0,
+            health: 0.0,
+            pellets: 0.0,
+            time_to_aim: 0.0,
+            detection_radius: 0.0,
+            range_start: 0.0,
+            range_end: 0.0,
+            burst: 0.0,
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
@@ -57,6 +70,7 @@ fn load_magazines_from_sqlite(conn: &Connection) -> anyhow::Result<Vec<Magazine>
             reload_time: row.get(3)?,
             damage_mod: row.get(4)?,
             fire_rate_mod: row.get(5)?,
+            price_type: PriceType::Unknown,
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
@@ -70,6 +84,7 @@ fn load_parts_from_sqlite(conn: &Connection, part_type: &str) -> anyhow::Result<
             category: row.get(1)?,
             damage_mod: row.get(2)?,
             fire_rate_mod: row.get(3)?,
+            price_type: PriceType::Unknown,
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
@@ -142,6 +157,7 @@ fn parse_cores(v: &Value) -> anyhow::Result<Vec<Core>> {
         .map(|node| {
             let obj = node.as_object().unwrap();
             let (damage, damage_end) = parse_damage_pair(obj.get("Damage"));
+            let (range_start, range_end) = parse_range_pair(obj.get("Dropoff_Studs"));
             Core {
                 name: obj
                     .get("Name")
@@ -156,6 +172,25 @@ fn parse_cores(v: &Value) -> anyhow::Result<Vec<Core>> {
                 damage,
                 damage_end,
                 fire_rate: optional_number(obj.get("Fire_Rate")),
+                price_type: parse_price_type(obj.get("Price_Type")),
+                spread_hip: optional_number(obj.get("Hipfire_Spread")),
+                spread_aim: optional_number(obj.get("ADS_Spread")),
+                recoil_hip: recoil_sum(
+                    obj.get("Recoil_Hip_Horizontal"),
+                    obj.get("Recoil_Hip_Vertical"),
+                ),
+                recoil_aim: recoil_sum(
+                    obj.get("Recoil_Aim_Horizontal"),
+                    obj.get("Recoil_Aim_Vertical"),
+                ),
+                movement_speed: optional_number(obj.get("Movement_Speed_Modifier")),
+                health: optional_number(obj.get("Health")),
+                pellets: optional_number(obj.get("Pellets")),
+                time_to_aim: optional_number(obj.get("Time_To_Aim")),
+                detection_radius: optional_number(obj.get("Detection_Radius")),
+                range_start,
+                range_end,
+                burst: optional_number(obj.get("Burst")),
             }
         })
         .collect())
@@ -184,6 +219,7 @@ fn parse_magazines(v: &Value) -> anyhow::Result<Vec<Magazine>> {
                 reload_time: optional_number(obj.get("Reload_Time")),
                 damage_mod: optional_number(obj.get("Damage")),
                 fire_rate_mod: optional_number(obj.get("Fire_Rate")),
+                price_type: parse_price_type(obj.get("Price_Type")),
             }
         })
         .collect())
@@ -210,6 +246,7 @@ fn parse_parts(v: &Value) -> anyhow::Result<Vec<Part>> {
                     .to_string(),
                 damage_mod: optional_number(obj.get("Damage")),
                 fire_rate_mod: optional_number(obj.get("Fire_Rate")),
+                price_type: parse_price_type(obj.get("Price_Type")),
             }
         })
         .collect())
@@ -240,6 +277,21 @@ fn parse_damage_pair(value: Option<&Value>) -> (f64, f64) {
         let d = number_to_f(value);
         (d, d)
     }
+}
+
+fn parse_range_pair(value: Option<&Value>) -> (f64, f64) {
+    parse_damage_pair(value)
+}
+
+fn recoil_sum(horizontal: Option<&Value>, vertical: Option<&Value>) -> f64 {
+    optional_number(horizontal) + optional_number(vertical)
+}
+
+fn parse_price_type(value: Option<&Value>) -> PriceType {
+    value
+        .and_then(Value::as_str)
+        .map(PriceType::parse)
+        .unwrap_or(PriceType::Unknown)
 }
 
 fn optional_number(value: Option<&Value>) -> f64 {

@@ -31,8 +31,17 @@ Executable output:
 - `--part-pool <n>` candidate parts per type per core
 - `--damage-min`, `--damage-max`
 - `--damage-end-min`, `--damage-end-max`
+- `--damage`, `--damageStart`, `--damage-end`
+- `--magazine`, `--spreadHip`, `--spreadAim`, `--recoilHip`, `--recoilAim`
+- `--speed`, `--fireRate`, `--health`, `--pellet`, `--timeToAim`
+- `--reload`, `--detectionRadius`, `--range`, `--rangeEnd`, `--burst`
+- each metric also supports `--<metric>-min` and `--<metric>-max`
 - `--ttk-min`, `--ttk-max` (seconds)
 - `--dps-min`, `--dps-max`
+- `--TTK`, `--DPS`
+- force parts / cores: `--fb|--forceBarrel`, `--fm|--forceMagazine`, `--fg|--forceGrip`, `--fs|--forceStock`, `--fc|--forceCore`
+- ban parts / cores: `--bb|--banBarrel`, `--bm|--banMagazine`, `--bg|--banGrip`, `--bs|--banStock`, `--bc|--banCore`
+- `--banPriceType <COIN|WC|ROBUX|LIMITED|SPECIAL>`
 - `--metrics`
 
 ## Test
