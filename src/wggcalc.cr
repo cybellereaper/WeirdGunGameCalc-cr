@@ -1,4 +1,6 @@
 require "json"
+require "db"
+require "sqlite3"
 
 module WGGCalc
   struct Range
@@ -31,7 +33,7 @@ module WGGCalc
   end
 
   struct Config
-    property data_path : String = "Data/FullData.json"
+    property data_path : String = "Data/FullData.sqlite3"
     property top_n : Int32 = 10
     property player_max_health : Float64 = 100.0
     property sort_key : SortKey = SortKey::TTK
@@ -83,6 +85,125 @@ module WGGCalc
     extend self
 
     def load_data(path : String) : DataSet
+      return load_sqlite_data(path) if sqlite_path?(path)
+      load_json_data(path)
+    end
+
+    private def sqlite_path?(path : String) : Bool
+      lowered = path.downcase
+      lowered.ends_with?(".sqlite") || lowered.ends_with?(".sqlite3") || lowered.ends_with?(".db")
+    end
+
+    private def load_sqlite_data(path : String) : DataSet
+      DB.open("sqlite3://#{path}") do |db|
+        categories = load_categories_from_sqlite(db)
+        penalties = load_penalties_from_sqlite(db)
+
+        DataSet.new(
+          cores: load_cores_from_sqlite(db),
+          magazines: load_magazines_from_sqlite(db),
+          barrels: load_parts_from_sqlite(db, "Barrels"),
+          grips: load_parts_from_sqlite(db, "Grips"),
+          stocks: load_parts_from_sqlite(db, "Stocks"),
+          penalties: penalties,
+          categories: categories
+        )
+      end
+    end
+
+    private def load_cores_from_sqlite(db : DB::Database) : Array(Core)
+      query = <<-SQL
+        SELECT name, category, damage, damage_end, fire_rate
+        FROM cores
+        ORDER BY id
+      SQL
+
+      rows = [] of Core
+      db.query_each(query) do |rs|
+        rows << Core.new(
+          name: rs.read(String),
+          category: rs.read(String),
+          damage: rs.read(Float64),
+          damage_end: rs.read(Float64),
+          fire_rate: rs.read(Float64)
+        )
+      end
+      rows
+    end
+
+    private def load_magazines_from_sqlite(db : DB::Database) : Array(Magazine)
+      query = <<-SQL
+        SELECT name, category, magazine_size, reload_time, damage_mod, fire_rate_mod
+        FROM magazines
+        ORDER BY id
+      SQL
+
+      rows = [] of Magazine
+      db.query_each(query) do |rs|
+        rows << Magazine.new(
+          name: rs.read(String),
+          category: rs.read(String),
+          magazine_size: rs.read(Float64),
+          reload_time: rs.read(Float64),
+          damage_mod: rs.read(Float64),
+          fire_rate_mod: rs.read(Float64)
+        )
+      end
+      rows
+    end
+
+    private def load_parts_from_sqlite(db : DB::Database, part_type : String) : Array(Part)
+      query = <<-SQL
+        SELECT name, category, damage_mod, fire_rate_mod
+        FROM parts
+        WHERE part_type = ?
+        ORDER BY id
+      SQL
+
+      rows = [] of Part
+      db.query_each(query, part_type) do |rs|
+        rows << Part.new(
+          name: rs.read(String),
+          category: rs.read(String),
+          damage_mod: rs.read(Float64),
+          fire_rate_mod: rs.read(Float64)
+        )
+      end
+      rows
+    end
+
+    private def load_categories_from_sqlite(db : DB::Database) : Hash(String, Int32)
+      map = {} of String => Int32
+      db.query_each("SELECT name, idx FROM categories") do |rs|
+        map[rs.read(String)] = rs.read(Int64).to_i
+      end
+      map
+    end
+
+    private def load_penalties_from_sqlite(db : DB::Database) : Array(Array(Float64))
+      entries = [] of {Int32, Int32, Float64}
+      max_row = -1
+      max_col = -1
+
+      db.query_each("SELECT core_idx, part_idx, value FROM penalties") do |rs|
+        core_idx = rs.read(Int64).to_i
+        part_idx = rs.read(Int64).to_i
+        value = rs.read(Float64)
+        entries << {core_idx, part_idx, value}
+        max_row = core_idx if core_idx > max_row
+        max_col = part_idx if part_idx > max_col
+      end
+
+      return [] of Array(Float64) if max_row < 0 || max_col < 0
+
+      matrix = Array.new(max_row + 1) { Array.new(max_col + 1, 1.0) }
+      entries.each do |core_idx, part_idx, value|
+        matrix[core_idx][part_idx] = value
+      end
+      matrix
+    end
+
+    private def load_json_data(path : String) : DataSet
       root = JSON.parse(File.read(path)).as_h
       categories = parse_category_map(root)
       penalties = root["Penalties"].as_a.map { |row| row.as_a.map { |cell| number_to_f(cell) } }

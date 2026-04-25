@@ -22,7 +22,7 @@ Executable output:
 
 ## Supported flags
 
-- `--data <path>` path to `FullData.json`
+- `--data <path>` path to `FullData.sqlite3` (JSON still supported for backward compatibility)
 - `--top <n>` number of returned builds
 - `--mh <health>` max player health
 - `--sort <ttk|dps|damage|damageend|firerate|magazine>`

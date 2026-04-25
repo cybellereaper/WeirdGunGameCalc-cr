@@ -3,6 +3,8 @@ require "csv"
 require "json"
 require "http/client"
 require "uri"
+require "db"
+require "sqlite3"
 
 module SheetParser
   SHEET_ID     = "1Kc9aME3xlUC_vV5dFRe457OchqUOrwuiX_pQykjCF68"
@@ -15,7 +17,7 @@ module SheetParser
   PARTS_V2_SHEET = "#{SHEET_FOLDER}/parts2.csv"
   CORES_SHEET    = "#{SHEET_FOLDER}/cores.csv"
 
-  OUTPUT_FILE = "#{DATA_FOLDER}/FullData.json"
+  OUTPUT_FILE = "#{DATA_FOLDER}/FullData.sqlite3"
 
   VALID_PART_CATEGORIES = ["AR", "Sniper", "SMG", "LMG", "Shotgun", "BR", "Weird", "Sidearm"]
   VALID_PART_TYPES      = ["Barrels", "Magazines", "Grips", "Stocks"]
@@ -307,6 +309,158 @@ module SheetParser
     File.write(output_path, data.to_json)
   end
 
+  def save_sqlite(data : Hash(String, JsonValue), output_path : String)
+    Dir.mkdir_p(File.dirname(output_path))
+    File.delete(output_path) if File.exists?(output_path)
+
+    DB.open("sqlite3://#{output_path}") do |db|
+      create_schema(db)
+      insert_categories(db, data["Categories"].as(Hash(String, Hash(String, Int32))))
+      insert_penalties(db, data["Penalties"].as(Array(Array(Float64))))
+
+      records = data["Data"].as(Hash(String, JsonValue))
+      insert_cores(db, records["Cores"].as(Array(Hash(String, JsonValue))))
+      insert_magazines(db, records["Magazines"].as(Array(Hash(String, JsonValue))))
+      insert_parts(db, "Barrels", records["Barrels"].as(Array(Hash(String, JsonValue))))
+      insert_parts(db, "Grips", records["Grips"].as(Array(Hash(String, JsonValue))))
+      insert_parts(db, "Stocks", records["Stocks"].as(Array(Hash(String, JsonValue))))
+    end
+  end
+
+  private def create_schema(db : DB::Database)
+    db.exec <<-SQL
+      CREATE TABLE categories (
+        name TEXT PRIMARY KEY,
+        idx INTEGER NOT NULL
+      );
+    SQL
+
+    db.exec <<-SQL
+      CREATE TABLE penalties (
+        core_idx INTEGER NOT NULL,
+        part_idx INTEGER NOT NULL,
+        value REAL NOT NULL,
+        PRIMARY KEY (core_idx, part_idx)
+      );
+    SQL
+
+    db.exec <<-SQL
+      CREATE TABLE cores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        damage REAL NOT NULL,
+        damage_end REAL NOT NULL,
+        fire_rate REAL NOT NULL
+      );
+    SQL
+
+    db.exec <<-SQL
+      CREATE TABLE magazines (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        magazine_size REAL NOT NULL,
+        reload_time REAL NOT NULL,
+        damage_mod REAL NOT NULL,
+        fire_rate_mod REAL NOT NULL
+      );
+    SQL
+
+    db.exec <<-SQL
+      CREATE TABLE parts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        part_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        damage_mod REAL NOT NULL,
+        fire_rate_mod REAL NOT NULL
+      );
+    SQL
+  end
+
+  private def insert_categories(db : DB::Database, categories : Hash(String, Hash(String, Int32)))
+    categories.each_value do |group|
+      group.each do |name, idx|
+        db.exec("INSERT INTO categories (name, idx) VALUES (?, ?)", name, idx)
+      end
+    end
+  end
+
+  private def insert_penalties(db : DB::Database, penalties : Array(Array(Float64)))
+    penalties.each_with_index do |row, core_idx|
+      row.each_with_index do |value, part_idx|
+        db.exec("INSERT INTO penalties (core_idx, part_idx, value) VALUES (?, ?, ?)", core_idx, part_idx, value)
+      end
+    end
+  end
+
+  private def insert_cores(db : DB::Database, cores : Array(Hash(String, JsonValue)))
+    cores.each do |core|
+      damage, damage_end = extract_damage_pair(core["Damage"]?)
+      db.exec(
+        "INSERT INTO cores (name, category, damage, damage_end, fire_rate) VALUES (?, ?, ?, ?, ?)",
+        core["Name"].as(String),
+        core["Category"].as(String),
+        damage,
+        damage_end,
+        json_value_to_f(core["Fire_Rate"]?)
+      )
+    end
+  end
+
+  private def insert_magazines(db : DB::Database, magazines : Array(Hash(String, JsonValue)))
+    magazines.each do |mag|
+      db.exec(
+        "INSERT INTO magazines (name, category, magazine_size, reload_time, damage_mod, fire_rate_mod) VALUES (?, ?, ?, ?, ?, ?)",
+        mag["Name"].as(String),
+        mag["Category"].as(String),
+        json_value_to_f(mag["Magazine_Size"]?),
+        json_value_to_f(mag["Reload_Time"]?),
+        json_value_to_f(mag["Damage"]?),
+        json_value_to_f(mag["Fire_Rate"]?)
+      )
+    end
+  end
+
+  private def insert_parts(db : DB::Database, part_type : String, parts : Array(Hash(String, JsonValue)))
+    parts.each do |part|
+      db.exec(
+        "INSERT INTO parts (part_type, name, category, damage_mod, fire_rate_mod) VALUES (?, ?, ?, ?, ?)",
+        part_type,
+        part["Name"].as(String),
+        part["Category"].as(String),
+        json_value_to_f(part["Damage"]?),
+        json_value_to_f(part["Fire_Rate"]?)
+      )
+    end
+  end
+
+  private def extract_damage_pair(value : JsonValue?) : Tuple(Float64, Float64)
+    return {0.0, 0.0} unless value
+    return {json_value_to_f(value), json_value_to_f(value)} unless value.is_a?(Array)
+
+    values = value.as(Array(JsonValue))
+    return {0.0, 0.0} if values.empty?
+    return {json_value_to_f(values[0]), json_value_to_f(values[0])} if values.size == 1
+    {json_value_to_f(values[0]), json_value_to_f(values[1])}
+  end
+
+  private def json_value_to_f(value : JsonValue?) : Float64
+    return 0.0 unless value
+
+    case value
+    when Int32
+      value.to_f
+    when Int64
+      value.to_f
+    when Float64
+      value
+    else
+      0.0
+    end
+  end
+
   def build_full_data(parts_file : String = PARTS_V2_SHEET, cores_file : String = CORES_SHEET)
     parts_data = PartsParser.new.parse_file(parts_file)
     cores_data = CoresParser.new.parse_file(cores_file)
@@ -332,6 +486,6 @@ module SheetParser
   def run
     download_sheets
     full_data = build_full_data
-    save_json(full_data, OUTPUT_FILE)
+    save_sqlite(full_data, OUTPUT_FILE)
   end
 end
