@@ -7,7 +7,7 @@ show_metrics = false
 OptionParser.parse do |parser|
   parser.banner = "Usage: wggcalc [arguments]"
 
-  parser.on("--data PATH", "Path to FullData.json") { |value| config.data_path = value }
+  parser.on("--data PATH", "Path to FullData.sqlite3") { |value| config.data_path = value }
   parser.on("--top N", "Number of results") { |value| config.top_n = value.to_i }
   parser.on("--mh VALUE", "Max player health") { |value| config.player_max_health = value.to_f }
   parser.on("--sort KEY", "ttk|dps|damage|damageend|firerate|magazine") do |value|
