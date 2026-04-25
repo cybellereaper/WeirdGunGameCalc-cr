@@ -1,0 +1,9 @@
+name: wggcalc
+version: 0.1.0
+
+targets:
+  wggcalc:
+    main: src/main.cr
+
+crystal: '>= 1.20.0'
+license: MIT

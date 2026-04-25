@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weird Gun Game Calc (WebAssembly-ready web app)</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Weird Gun Game Calc</h1>
+      <p class="subtitle">Static web build for GitHub Pages. Uses browser-side compute and can be upgraded to WASM module later.</p>
+
+      <section class="panel">
+        <h2>Controls</h2>
+        <div class="grid">
+          <label>Data URL
+            <input id="dataUrl" value="../Data/FullData.json" />
+          </label>
+          <label>Top N
+            <input id="topN" type="number" min="1" value="10" />
+          </label>
+          <label>Sort
+            <select id="sortKey">
+              <option value="ttk">TTK</option>
+              <option value="dps">DPS</option>
+              <option value="damage">Damage</option>
+              <option value="damageend">Damage End</option>
+              <option value="firerate">Fire Rate</option>
+              <option value="magazine">Magazine</option>
+            </select>
+          </label>
+          <label>Priority
+            <select id="priority">
+              <option value="auto">Auto</option>
+              <option value="highest">Highest</option>
+              <option value="lowest">Lowest</option>
+            </select>
+          </label>
+          <label>Player Health
+            <input id="maxHealth" type="number" min="1" step="1" value="100" />
+          </label>
+          <label>Include categories (comma list)
+            <input id="include" placeholder="AR,SMG" />
+          </label>
+        </div>
+        <button id="runBtn">Run</button>
+      </section>
+
+      <section class="panel">
+        <h2>Results</h2>
+        <pre id="output">Click Run to calculate.</pre>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
