@@ -34,36 +34,44 @@ impl Engine {
                 core,
                 core_idx,
                 config.part_pool_per_type,
-                &config.force_magazines,
-                &config.ban_magazines,
-                &config.ban_price_types,
+                PartSelectionFilter {
+                    forced_names: &config.force_magazines,
+                    banned_names: &config.ban_magazines,
+                    banned_price_types: &config.ban_price_types,
+                },
             );
             let barrels = self.top_parts(
                 &self.data.barrels,
                 core,
                 core_idx,
                 config.part_pool_per_type,
-                &config.force_barrels,
-                &config.ban_barrels,
-                &config.ban_price_types,
+                PartSelectionFilter {
+                    forced_names: &config.force_barrels,
+                    banned_names: &config.ban_barrels,
+                    banned_price_types: &config.ban_price_types,
+                },
             );
             let stocks = self.top_parts(
                 &self.data.stocks,
                 core,
                 core_idx,
                 config.part_pool_per_type,
-                &config.force_stocks,
-                &config.ban_stocks,
-                &config.ban_price_types,
+                PartSelectionFilter {
+                    forced_names: &config.force_stocks,
+                    banned_names: &config.ban_stocks,
+                    banned_price_types: &config.ban_price_types,
+                },
             );
             let grips = self.top_parts(
                 &self.data.grips,
                 core,
                 core_idx,
                 config.part_pool_per_type,
-                &config.force_grips,
-                &config.ban_grips,
-                &config.ban_price_types,
+                PartSelectionFilter {
+                    forced_names: &config.force_grips,
+                    banned_names: &config.ban_grips,
+                    banned_price_types: &config.ban_price_types,
+                },
             );
 
             for mag in mags {
@@ -224,16 +232,11 @@ impl Engine {
         core: &Core,
         core_idx: usize,
         max_count: usize,
-        forced_names: &[String],
-        banned_names: &[String],
-        banned_price_types: &[PriceType],
+        filter: PartSelectionFilter<'_>,
     ) -> Vec<&'a Part> {
         let mut ranked: Vec<&Part> = pool
             .iter()
-            .filter(|part| {
-                allowed_name(&part.name, forced_names, banned_names)
-                    && !banned_price_types.contains(&part.price_type)
-            })
+            .filter(|part| filter.allows(&part.name, part.price_type))
             .collect();
         ranked.sort_by(|a, b| {
             part_score(self, core, core_idx, b).total_cmp(&part_score(self, core, core_idx, a))
@@ -246,18 +249,13 @@ impl Engine {
         core: &Core,
         core_idx: usize,
         max_count: usize,
-        forced_names: &[String],
-        banned_names: &[String],
-        banned_price_types: &[PriceType],
+        filter: PartSelectionFilter<'_>,
     ) -> Vec<&'a Magazine> {
         let mut ranked: Vec<&Magazine> = self
             .data
             .magazines
             .iter()
-            .filter(|mag| {
-                allowed_name(&mag.name, forced_names, banned_names)
-                    && !banned_price_types.contains(&mag.price_type)
-            })
+            .filter(|mag| filter.allows(&mag.name, mag.price_type))
             .collect();
         ranked.sort_by(|a, b| {
             let sb = part_score_mag(self, core, core_idx, b) + b.magazine_size * 0.05;
@@ -273,6 +271,20 @@ struct Selection<'a> {
     barrel: &'a Part,
     stock: &'a Part,
     grip: &'a Part,
+}
+
+#[derive(Clone, Copy)]
+struct PartSelectionFilter<'a> {
+    forced_names: &'a [String],
+    banned_names: &'a [String],
+    banned_price_types: &'a [PriceType],
+}
+
+impl PartSelectionFilter<'_> {
+    fn allows(&self, name: &str, price_type: PriceType) -> bool {
+        allowed_name(name, self.forced_names, self.banned_names)
+            && !self.banned_price_types.contains(&price_type)
+    }
 }
 
 fn part_score(engine: &Engine, core: &Core, core_idx: usize, part: &Part) -> f64 {
