@@ -1,0 +1,10 @@
+:root { color-scheme: dark; }
+body { font-family: Inter, system-ui, sans-serif; margin: 0; background: #111827; color: #e5e7eb; }
+.container { max-width: 980px; margin: 0 auto; padding: 1rem; }
+.subtitle { color: #9ca3af; }
+.panel { background: #1f2937; border: 1px solid #374151; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
+label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; }
+input, select, button { border-radius: 8px; border: 1px solid #4b5563; background: #111827; color: #e5e7eb; padding: 0.55rem; }
+button { margin-top: 0.75rem; cursor: pointer; background: #2563eb; border-color: #2563eb; }
+pre { background: #0b1220; border: 1px solid #374151; border-radius: 8px; padding: 1rem; min-height: 250px; overflow: auto; }

@@ -1,0 +1,34 @@
+name: Update sheet data
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Crystal
+        uses: crystal-lang/install-crystal@v1
+
+      - name: Install shard dependencies
+        run: shards install --production
+
+      - name: Refresh FullData.sqlite3 from sheet
+        run: crystal run ParseSheet.cr
+
+      - name: Commit and push updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Data/FullData.sqlite3
+          git commit -m "chore: update parsed sheet data" || echo "Nothing to commit"
+          git push
