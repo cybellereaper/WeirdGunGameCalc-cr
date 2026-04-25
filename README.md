@@ -1,23 +1,23 @@
-# WeirdGunGameCalc
+# WeirdGunGameCalc (Rust)
 
 ## Build
 
 ```bash
-shards build --release
+cargo build --release
 ```
 
 Executable output:
 
 ```bash
-./bin/wggcalc --help
+./target/release/wggcalc --help
 ```
 
 ## Run examples
 
 ```bash
-./bin/wggcalc --top 10 --sort ttk --include AR,SMG
-./bin/wggcalc --sort dps --priority highest --dps-min 100
-./bin/wggcalc --ttk-max 0.25 --mh 100
+./target/release/wggcalc --top 10 --sort ttk --include AR,SMG
+./target/release/wggcalc --sort dps --priority highest --dps-min 100
+./target/release/wggcalc --ttk-max 0.25 --mh 100
 ```
 
 ## Supported flags
@@ -38,23 +38,5 @@ Executable output:
 ## Test
 
 ```bash
-crystal spec
+cargo test
 ```
-
-## Regenerating sheet data
-
-```bash
-crystal run ParseSheet.cr
-```
-
-
-## Web app (GitHub Pages)
-
-A browser-hosted version is available under `docs/`.
-
-- Entry point: `docs/index.html`
-- Engine: `docs/src/engine.js`
-- UI: `docs/src/app.js`
-- Tests: `docs/tests/engine.test.mjs`
-
-See `docs/README.md` for GitHub Pages deployment steps.
