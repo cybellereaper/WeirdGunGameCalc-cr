@@ -50,6 +50,23 @@ describe SheetParser::PartsParser do
   end
 end
 
+describe SheetParser::CoresParser do
+  it "accepts rows with extra trailing columns" do
+    parser = SheetParser::CoresParser.new
+    rows = [
+      [
+        "Coin", "Test Core", "10 - 8", "100 - 80", "", "", "", "", "", "", "", "", "", "", "1 - 1", "1 - 1", "1 - 1", "1 - 1", "ignored extra",
+      ],
+    ]
+
+    output = parser.parse_rows(rows)
+    output.size.should eq(1)
+    output[0]["Name"].should eq("Test Core")
+    output[0]["Category"].should eq("AR")
+    output[0]["Damage"].should eq([10, 8])
+  end
+end
+
 describe SheetParser::SheetDownloader do
   it "follows HTTP redirects when downloading exports" do
     server = HTTP::Server.new do |context|
