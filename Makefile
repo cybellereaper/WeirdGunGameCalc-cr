@@ -1,4 +1,4 @@
-.PHONY: build run test clean
+.PHONY: build run test update-data clean
 
 build:
 	cargo build --release
@@ -8,6 +8,9 @@ run:
 
 test:
 	cargo test
+
+update-data:
+	cargo run --bin update-data
 
 clean:
 	cargo clean

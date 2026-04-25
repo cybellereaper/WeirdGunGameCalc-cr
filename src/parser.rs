@@ -234,7 +234,7 @@ fn parse_damage_pair(value: Option<&Value>) -> (f64, f64) {
     if let Some(arr) = value.as_array() {
         (
             number_to_f(&arr[0]),
-            number_to_f(&arr.get(1).unwrap_or(&arr[0])),
+            number_to_f(arr.get(1).unwrap_or(&arr[0])),
         )
     } else {
         let d = number_to_f(value);

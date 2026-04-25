@@ -1,9 +1,19 @@
 use anyhow::{anyhow, bail};
+use csv::ReaderBuilder;
 use reqwest::blocking::Client;
 use rusqlite::{params, Connection};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+pub const SHEET_ID: &str = "1Kc9aME3xlUC_vV5dFRe457OchqUOrwuiX_pQykjCF68";
+pub const SHEET_FOLDER: &str = "SheetData";
+pub const DATA_FOLDER: &str = "Data";
+pub const PARTS_V2_SHEET_GID: &str = "319672878";
+pub const CORES_SHEET_GID: &str = "911413911";
+pub const PARTS_V2_SHEET: &str = "SheetData/parts2.csv";
+pub const CORES_SHEET: &str = "SheetData/cores.csv";
+pub const OUTPUT_FILE: &str = "Data/FullData.sqlite3";
 
 pub const VALID_PART_CATEGORIES: [&str; 8] = [
     "AR", "Sniper", "SMG", "LMG", "Shotgun", "BR", "Weird", "Sidearm",
@@ -97,11 +107,9 @@ impl Normalizer {
             return Ok(JsonValue::Null);
         }
         let cleaned = value
-            .replace('°', "")
-            .replace('s', "")
+            .replace(['°', 's'], "")
             .replace("rpm", "")
-            .replace('%', "")
-            .replace(',', "")
+            .replace(['%', ','], "")
             .replace('>', "-")
             .trim()
             .to_string();
@@ -128,11 +136,9 @@ impl Normalizer {
         if VALID_PRICE_TYPES.contains(&normalized) {
             return normalized.to_string();
         }
-        let capitalized = format!(
-            "{}{}",
-            normalized[0..1].to_uppercase(),
-            &normalized[1..].to_lowercase()
-        );
+        let mut chars = normalized.chars();
+        let first = chars.next().unwrap_or_default();
+        let capitalized = format!("{}{}", first.to_uppercase(), chars.as_str().to_lowercase());
         if VALID_PRICE_TYPES.contains(&capitalized.as_str()) {
             return capitalized;
         }
@@ -165,6 +171,11 @@ fn coerce_number(value: f64) -> JsonValue {
 
 pub struct PartsParser {
     seen_parts: HashMap<(String, String), HashSet<String>>,
+}
+impl Default for PartsParser {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl PartsParser {
     pub fn new() -> Self {
@@ -240,6 +251,18 @@ impl PartsParser {
         }
         Ok(output)
     }
+
+    pub fn parse_file(&mut self, path: &Path) -> anyhow::Result<HashMap<String, Vec<ItemRow>>> {
+        let rows = read_csv_rows(path, 2, true)?;
+        let mut truncated = Vec::new();
+        for row in rows {
+            if row.get(1).is_some_and(|name| name.starts_with("Notable ")) {
+                break;
+            }
+            truncated.push(row);
+        }
+        self.parse_rows(&truncated)
+    }
 }
 
 fn parse_divider(name: &str) -> Option<(String, String)> {
@@ -257,6 +280,11 @@ fn parse_divider(name: &str) -> Option<(String, String)> {
 
 pub struct CoresParser;
 impl CoresParser {
+    pub fn parse_file(&self, path: &Path) -> anyhow::Result<Vec<ItemRow>> {
+        let rows = read_csv_rows(path, 2, true)?;
+        self.parse_rows(&rows)
+    }
+
     pub fn parse_rows(&self, rows: &[Vec<String>]) -> anyhow::Result<Vec<ItemRow>> {
         let mut output = vec![];
         let mut current_category = "AR".to_string();
@@ -313,6 +341,29 @@ pub fn extract_leading_token(cell: &str) -> anyhow::Result<String> {
     cell.split_once(' ')
         .map(|(v, _)| v.to_string())
         .ok_or_else(|| anyhow!("Invalid property cell format: {cell:?}"))
+}
+
+pub fn read_csv_rows(
+    path: &Path,
+    skip_header_rows: usize,
+    trim_first_column: bool,
+) -> anyhow::Result<Vec<Vec<String>>> {
+    let mut reader = ReaderBuilder::new()
+        .has_headers(false)
+        .flexible(true)
+        .from_path(path)?;
+    let mut rows = Vec::new();
+    for record in reader.records() {
+        rows.push(record?.iter().map(ToString::to_string).collect::<Vec<_>>());
+    }
+    let rows = rows.into_iter().skip(skip_header_rows);
+    if trim_first_column {
+        Ok(rows
+            .map(|row| row.into_iter().skip(1).collect::<Vec<_>>())
+            .collect())
+    } else {
+        Ok(rows.collect())
+    }
 }
 
 pub struct SheetExport {
@@ -389,6 +440,83 @@ impl SheetDownloader {
         }
         bail!("Too many redirects while downloading {initial_url}")
     }
+}
+
+pub fn build_full_data(parts_file: &Path, cores_file: &Path) -> anyhow::Result<ExportData> {
+    let mut parts_parser = PartsParser::new();
+    let parts_data = parts_parser.parse_file(parts_file)?;
+    let cores_parser = CoresParser;
+    let cores_data = cores_parser.parse_file(cores_file)?;
+
+    let mut combined = HashMap::new();
+    combined.insert(
+        "Barrels".to_string(),
+        parts_data.get("Barrels").cloned().unwrap_or_default(),
+    );
+    combined.insert(
+        "Magazines".to_string(),
+        parts_data.get("Magazines").cloned().unwrap_or_default(),
+    );
+    combined.insert(
+        "Grips".to_string(),
+        parts_data.get("Grips").cloned().unwrap_or_default(),
+    );
+    combined.insert(
+        "Stocks".to_string(),
+        parts_data.get("Stocks").cloned().unwrap_or_default(),
+    );
+    combined.insert("Cores".to_string(), cores_data);
+
+    let categories = HashMap::from([
+        (
+            "Primary".to_string(),
+            HashMap::from([
+                ("AR".to_string(), 0),
+                ("Sniper".to_string(), 1),
+                ("SMG".to_string(), 2),
+                ("Shotgun".to_string(), 3),
+                ("LMG".to_string(), 4),
+                ("Weird".to_string(), 5),
+                ("BR".to_string(), 6),
+            ]),
+        ),
+        (
+            "Secondary".to_string(),
+            HashMap::from([("Sidearm".to_string(), 7)]),
+        ),
+    ]);
+    let penalties = vec![
+        vec![1.00, 0.70, 0.75, 0.70, 0.75, 1.00, 0.80, 0.65],
+        vec![0.70, 1.00, 0.60, 0.60, 0.80, 1.00, 0.85, 0.50],
+        vec![0.80, 0.60, 1.00, 0.65, 0.65, 1.00, 0.70, 0.70],
+        vec![0.70, 0.50, 0.65, 1.00, 0.75, 1.00, 0.60, 0.65],
+        vec![0.75, 0.80, 0.65, 0.75, 1.00, 1.00, 0.85, 0.50],
+        vec![1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00],
+        vec![0.80, 0.85, 0.70, 0.60, 0.85, 1.00, 1.00, 0.65],
+        vec![0.65, 0.50, 0.75, 0.65, 0.50, 1.00, 0.65, 1.00],
+    ];
+
+    Ok(ExportData {
+        data: combined,
+        penalties,
+        categories,
+    })
+}
+
+pub fn download_sheets(sheet_id: &str, sheet_folder: &Path) -> anyhow::Result<()> {
+    let downloader = SheetDownloader::new(sheet_id.to_string(), sheet_folder.to_path_buf());
+    downloader.download(&[
+        SheetExport {
+            gid: CORES_SHEET_GID.to_string(),
+            output_path: PathBuf::from(CORES_SHEET),
+            url_override: None,
+        },
+        SheetExport {
+            gid: PARTS_V2_SHEET_GID.to_string(),
+            output_path: PathBuf::from(PARTS_V2_SHEET),
+            url_override: None,
+        },
+    ])
 }
 
 fn clear_sheet_folder(path: &Path) -> anyhow::Result<()> {

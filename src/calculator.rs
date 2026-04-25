@@ -41,8 +41,13 @@ impl Engine {
                     for stock in &stocks {
                         for grip in &grips {
                             stats.combinations_evaluated += 1;
-                            let Some(res) =
-                                self.build_result(config, core, core_idx, mag, barrel, stock, grip)
+                            let selection = Selection {
+                                mag,
+                                barrel,
+                                stock,
+                                grip,
+                            };
+                            let Some(res) = self.build_result(config, core, core_idx, &selection)
                             else {
                                 continue;
                             };
@@ -66,29 +71,58 @@ impl Engine {
         config: &Config,
         core: &Core,
         core_idx: usize,
-        mag: &Magazine,
-        barrel: &Part,
-        stock: &Part,
-        grip: &Part,
+        selection: &Selection<'_>,
     ) -> Option<ResultRow> {
         let dmg_mult = self.percent_multiplier(
             core,
             core_idx,
             [
-                (&mag.name, &mag.category, mag.damage_mod),
-                (&barrel.name, &barrel.category, barrel.damage_mod),
-                (&stock.name, &stock.category, stock.damage_mod),
-                (&grip.name, &grip.category, grip.damage_mod),
+                (
+                    &selection.mag.name,
+                    &selection.mag.category,
+                    selection.mag.damage_mod,
+                ),
+                (
+                    &selection.barrel.name,
+                    &selection.barrel.category,
+                    selection.barrel.damage_mod,
+                ),
+                (
+                    &selection.stock.name,
+                    &selection.stock.category,
+                    selection.stock.damage_mod,
+                ),
+                (
+                    &selection.grip.name,
+                    &selection.grip.category,
+                    selection.grip.damage_mod,
+                ),
             ],
         );
         let fr_mult = self.percent_multiplier(
             core,
             core_idx,
             [
-                (&mag.name, &mag.category, mag.fire_rate_mod),
-                (&barrel.name, &barrel.category, barrel.fire_rate_mod),
-                (&stock.name, &stock.category, stock.fire_rate_mod),
-                (&grip.name, &grip.category, grip.fire_rate_mod),
+                (
+                    &selection.mag.name,
+                    &selection.mag.category,
+                    selection.mag.fire_rate_mod,
+                ),
+                (
+                    &selection.barrel.name,
+                    &selection.barrel.category,
+                    selection.barrel.fire_rate_mod,
+                ),
+                (
+                    &selection.stock.name,
+                    &selection.stock.category,
+                    selection.stock.fire_rate_mod,
+                ),
+                (
+                    &selection.grip.name,
+                    &selection.grip.category,
+                    selection.grip.fire_rate_mod,
+                ),
             ],
         );
 
@@ -103,14 +137,14 @@ impl Engine {
 
         Some(ResultRow {
             core: core.name.clone(),
-            magazine: mag.name.clone(),
-            barrel: barrel.name.clone(),
-            stock: stock.name.clone(),
-            grip: grip.name.clone(),
+            magazine: selection.mag.name.clone(),
+            barrel: selection.barrel.name.clone(),
+            stock: selection.stock.name.clone(),
+            grip: selection.grip.name.clone(),
             damage,
             damage_end: core.damage_end * dmg_mult,
             fire_rate,
-            magazine_size: mag.magazine_size,
+            magazine_size: selection.mag.magazine_size,
             ttk_seconds,
             dps: (damage * fire_rate) / 60.0,
         })
@@ -169,6 +203,13 @@ impl Engine {
         });
         ranked.into_iter().take(max_count).collect()
     }
+}
+
+struct Selection<'a> {
+    mag: &'a Magazine,
+    barrel: &'a Part,
+    stock: &'a Part,
+    grip: &'a Part,
 }
 
 fn part_score(engine: &Engine, core: &Core, core_idx: usize, part: &Part) -> f64 {

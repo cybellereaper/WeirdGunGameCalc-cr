@@ -40,3 +40,9 @@ Executable output:
 ```bash
 cargo test
 ```
+
+## Regenerating sheet data
+
+```bash
+cargo run --bin update-data
+```
