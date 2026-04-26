@@ -33,7 +33,7 @@ struct Cli {
 
     #[arg(
         long = "damageStart",
-        alias = "range",
+        alias = "damage-start",
         value_delimiter = ',',
         num_args = 2
     )]
@@ -376,5 +376,51 @@ fn parse_priority(value: &str) -> anyhow::Result<SortPriority> {
         "lowest" => Ok(SortPriority::Lowest),
         "auto" => Ok(SortPriority::Auto),
         _ => anyhow::bail!("Invalid priority: {value}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn range_from_args_prefers_explicit_min_max() {
+        let range = range_from_args(Some(vec![10.0, 20.0]), None, Some(11.0), Some(19.0));
+        assert_eq!(range.min, Some(11.0));
+        assert_eq!(range.max, Some(19.0));
+    }
+
+    #[test]
+    fn range_from_args_falls_back_to_alias_pair() {
+        let range = range_from_args(None, Some(vec![1.5, 3.0]), None, None);
+        assert_eq!(range.min, Some(1.5));
+        assert_eq!(range.max, Some(3.0));
+    }
+
+    #[test]
+    fn split_csv_discards_empty_entries() {
+        let values = split_csv(Some(" alpha, ,beta ,, gamma ".to_string()));
+        assert_eq!(values, vec!["alpha", "beta", "gamma"]);
+    }
+
+    #[test]
+    fn parse_sort_accepts_case_insensitive_keys() {
+        assert!(matches!(parse_sort("DPS"), Ok(SortKey::Dps)));
+    }
+
+    #[test]
+    fn parse_sort_rejects_unknown_key() {
+        assert!(parse_sort("unknown").is_err());
+    }
+
+    #[test]
+    fn parse_priority_accepts_known_values() {
+        assert!(matches!(parse_priority("LOWEST"), Ok(SortPriority::Lowest)));
+    }
+
+    #[test]
+    fn parse_price_types_rejects_unknown_values() {
+        let invalid = vec!["not-a-price-type".to_string()];
+        assert!(parse_price_types(&invalid).is_err());
     }
 }
